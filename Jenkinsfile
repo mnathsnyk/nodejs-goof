@@ -50,15 +50,6 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            publishHTML (target : [allowMissing: false,
-             alwaysLinkToLastBuild: true,
-             keepAll: true,
-             reportDir: 'reports',
-             reportFiles: 'results.html',
-             reportName: 'snyk_test_report',
-             reportTitles: 'snyk_test'])
-        }
+    
     }
 }
