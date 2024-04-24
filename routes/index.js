@@ -63,7 +63,6 @@ function adminLoginSuccess(redirectPage, session, username, res) {
       return res.redirect('/admin')
   }
 }
-
 exports.login = function (req, res, next) {
   return res.render('admin', {
     title: 'Admin Access',
@@ -71,14 +70,6 @@ exports.login = function (req, res, next) {
     redirectPage: req.query.redirectPage
   });
 };
-
-exports.admin = function (req, res, next) {
-  return res.render('admin', {
-    title: 'Admin Access Granted',
-    granted: true,
-  });
-};
-
 exports.get_account_details = function(req, res, next) {
   // @TODO need to add a database call to get the profile from the database
   // and provide it to the view to display
@@ -213,19 +204,6 @@ exports.edit = function (req, res, next) {
         current: req.params.id
       });
     });
-};
-
-exports.update = function (req, res, next) {
-  Todo.findById(req.params.id, function (err, todo) {
-
-    todo.content = req.body.content;
-    todo.updated_at = Date.now();
-    todo.save(function (err, todo, count) {
-      if (err) return next(err);
-
-      res.redirect('/');
-    });
-  });
 };
 
 // ** express turns the cookie key to lowercase **
