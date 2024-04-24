@@ -5,63 +5,35 @@
 
 const fs = require('fs')
 const models = require('../models/index')
-const utils = require('../lib/utils')
 const insecurity = require('../lib/insecurity')
-const challenges = require('../data/datacache').challenges
-const pug = require('pug')
-const config = require('config')
-const themes = require('../views/themes/themes').themes
+const request = require('request')
+const logger = require('../lib/logger')
 
-module.exports = function getUserProfile () {
+module.exports = function profileImageUrlUpload () {
   return (req, res, next) => {
-    fs.readFile('views/userProfile.pug', function (err, buf) {
-      if (err) throw err
+    if (req.body.imageUrl !== undefined) {
+      const url = req.body.imageUrl
+      if (url.match(/(.)*solve\/challenges\/server-side(.)*/) !== null) req.app.locals.abused_ssrf_bug = true
       const loggedInUser = insecurity.authenticatedUsers.get(req.cookies.token)
       if (loggedInUser) {
-        models.User.findByPk(loggedInUser.data.id).then(user => {
-          let template = buf.toString()
-          let username = user.dataValues.username
-          if (username.match(/#\{(.*)\}/) !== null && !utils.disableOnContainerEnv()) {
-            req.app.locals.abused_ssti_bug = true
-            const code = username.substring(2, username.length - 1)
-            try {
-              username = eval(code) // eslint-disable-line no-eval
-            } catch (err) {
-              username = '\\' + username
-            }
-          } else {
-            username = '\\' + username
-          }
-          const theme = themes[config.get('application.theme')]
-          template = template.replace(/_username_/g, username)
-          template = template.replace(/_emailHash_/g, insecurity.hash(user.dataValues.email))
-          template = template.replace(/_title_/g, config.get('application.name'))
-          template = template.replace(/_favicon_/g, favicon())
-          template = template.replace(/_bgColor_/g, theme.bgColor)
-          template = template.replace(/_textColor_/g, theme.textColor)
-          template = template.replace(/_navColor_/g, theme.navColor)
-          template = template.replace(/_primLight_/g, theme.primLight)
-          template = template.replace(/_primDark_/g, theme.primDark)
-          template = template.replace(/_logo_/g, utils.extractFilename(config.get('application.logo')))
-          const fn = pug.compile(template)
-          const CSP = `img-src 'self' ${user.dataValues.profileImage}; script-src 'self' 'unsafe-eval' https://code.getmdl.io http://ajax.googleapis.com`
-          utils.solveIf(challenges.usernameXssChallenge, () => { return user.dataValues.profileImage.match(/;[ ]*script-src(.)*'unsafe-inline'/g) !== null && utils.contains(username, '<script>alert(`xss`)</script>') })
-
-          res.set({
-            'Content-Security-Policy': CSP
+        const imageRequest = request
+          .get(url)
+          .on('error', function (err) {
+            models.User.findByPk(loggedInUser.data.id).then(user => { return user.update({ profileImage: url }) }).catch(error => { next(error) })
+            logger.warn('Error retrieving user profile image: ' + err.message + '; using image link directly')
           })
-
-          res.send(fn(user.dataValues))
-        }).catch(error => {
-          next(error)
-        })
+          .on('response', function (res) {
+            if (res.statusCode === 200) {
+              const ext = ['jpg', 'jpeg', 'png', 'svg', 'gif'].includes(url.split('.').slice(-1)[0].toLowerCase()) ? url.split('.').slice(-1)[0].toLowerCase() : 'jpg'
+              imageRequest.pipe(fs.createWriteStream(`frontend/dist/frontend/assets/public/images/uploads/${loggedInUser.data.id}.${ext}`))
+              models.User.findByPk(loggedInUser.data.id).then(user => { return user.update({ profileImage: `/assets/public/images/uploads/${loggedInUser.data.id}.${ext}` }) }).catch(error => { next(error) })
+            } else models.User.findByPk(loggedInUser.data.id).then(user => { return user.update({ profileImage: url }) }).catch(error => { next(error) })
+          })
       } else {
         next(new Error('Blocked illegal activity by ' + req.connection.remoteAddress))
       }
-    })
-  }
-
-  function favicon () {
-    return utils.extractFilename(config.get('application.favicon'))
+    }
+    res.location(process.env.BASE_PATH + '/profile')
+    res.redirect(process.env.BASE_PATH + '/profile')
   }
 }
