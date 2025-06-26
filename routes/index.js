@@ -50,7 +50,12 @@ exports.loginHandler = function (req, res, next) {
     return res.status(401).send()
   }
 };
-
+exports.get_account_details = function(req, res, next) {
+  // @TODO need to add a database call to get the profile from the database
+  // and provide it to the view to display
+  const profile = {}
+ 	return res.render('account.hbs', profile)
+	
 function adminLoginSuccess(redirectPage, session, username, res) {
   session.loggedIn = 1
 
