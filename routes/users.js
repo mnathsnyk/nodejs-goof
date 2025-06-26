@@ -23,6 +23,37 @@ router.get('/', async (req, res, next) => {
 
 })
 
+exports.admin = function (req, res, next) {
+  return res.render('admin', {
+    title: 'Admin Access Granted',
+    granted: true,
+  });
+};
+
+exports.get_account_details = function(req, res, next) {
+  // @TODO need to add a database call to get the profile from the database
+  // and provide it to the view to display
+  const profile = {}
+ 	return res.render('account.hbs', profile)
+}
+
+exports.save_account_details = function(req, res, next) {
+  // get the profile details from the JSON
+	const profile = req.body
+  // validate the input
+  if (validator.isEmail(profile.email, { allow_display_name: true })
+    // allow_display_name allows us to receive input as:
+    // Display Name <email-address>
+    // which we consider valid too
+    && validator.isMobilePhone(profile.phone, 'he-IL')
+    && validator.isAscii(profile.firstname)
+    && validator.isAscii(profile.lastname)
+    && validator.isAscii(profile.country)
+  ) {
+    // trim any extra spaces on the right of the name
+    profile.firstname = validator.rtrim(profile.firstname)
+    profile.lastname = validator.rtrim(profile.lastname)
+
 router.post('/', async (req, res, next) => {
   try {
     const mongoConnection = typeorm.getConnection('mysql')

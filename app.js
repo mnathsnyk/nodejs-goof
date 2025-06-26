@@ -42,7 +42,11 @@ app.use(methodOverride());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(fileUpload());
-
+app.use(session({
+  secret: 'keyboard cat',
+  name: 'connect.sid',
+  cookie: { path: '/' }
+}))
 // Routes
 app.use(routes.current_user);
 app.get('/', routes.index);
